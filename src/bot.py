@@ -3,7 +3,7 @@ import logging
 
 from telethon import TelegramClient
 
-from .config import SETTINGS
+from . import SETTINGS
 from .database import Database
 from .handlers import BotHandlers
 from .queue import JobQueue
