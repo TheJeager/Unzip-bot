@@ -1,8 +1,8 @@
-# ArchiveX
+# Unzip Bot
 
 <div align="center">
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/3/32/Sketch_of_gojo_satoru.jpg" alt="Satoru Gojo banner" width="100%">
+<img src="https://raw.githubusercontent.com/TheJeager/Unzip-bot/main/assets/unzip-bot-hero.svg" alt="Unzip Bot" width="100%">
 
 ### A fast, secure Telegram bot for extracting archives
 
@@ -20,51 +20,51 @@
 
 ## About
 
-ArchiveX is a Telegram archive extraction bot built to be simple to use and safe to run.
+Unzip Bot is a Telegram bot for extracting archive files directly through Telegram.
 
-Send an archive to the bot and it handles the download, validation, extraction, upload and cleanup for you. Jobs are processed asynchronously, so one large archive does not have to block everything else.
+Send an archive and the bot takes care of downloading it, checking it, extracting its contents, uploading the results and cleaning up temporary files. Processing runs through an asynchronous job queue so multiple users can use the bot without one job blocking the entire application.
 
-The project is written as a modular Python application rather than one large bot file. Telegram handlers, archive processing, database access, queue management and security checks are kept separate so the code is easier to maintain and extend.
+The codebase is split into focused modules for Telegram handlers, archive processing, security, queue management, database access and file cleanup.
 
-## What it can do
+## Features
 
-- Extract ZIP archives
-- Extract TAR archives
-- Extract TAR.GZ / TGZ archives
-- Extract TAR.BZ2 / TBZ2 archives
-- Extract TAR.XZ / TXZ archives
-- Process multiple jobs through an async queue
-- Limit jobs per user
-- Show download, extraction and upload progress
-- Keep temporary files isolated per job
-- Automatically clean temporary data
-- Store user settings and job statistics in MongoDB
-- Run locally or inside Docker
-- Run the container as a non-root user
+- ZIP extraction
+- TAR extraction
+- TAR.GZ / TGZ extraction
+- TAR.BZ2 / TBZ2 extraction
+- TAR.XZ / TXZ extraction
+- Asynchronous job queue
+- Per-user job limits
+- Download, extraction and upload progress
+- Isolated temporary workspaces
+- Automatic cleanup
+- MongoDB-backed user and job data
+- Docker support
+- Non-root container execution
 
 ## Security
 
-Archive files are untrusted input, so ArchiveX does not simply unpack everything into the filesystem.
+Archive files are treated as untrusted input.
 
-Before and during extraction, the bot checks things such as:
+Unzip Bot checks archive contents before and during extraction to reduce common archive-extraction risks:
 
 - Path traversal
-- Unsafe archive member paths
+- Unsafe archive paths
 - Symlinks
 - Hard links
 - Device and special files
-- Archive size
-- Expanded size
-- Individual file size
-- Number of extracted files
-- Compression ratio
-- Duplicate archive members
+- Maximum archive size
+- Maximum expanded size
+- Maximum individual file size
+- Maximum extracted file count
+- Compression ratio limits
+- Duplicate members
 
-Every job gets its own temporary directory and that directory is removed when the job finishes.
+Each job receives an isolated temporary directory. Temporary data is removed after processing, including failure paths.
 
-MongoDB is used for metadata only. Archive contents are processed on the bot host and are not stored inside the database.
+MongoDB stores application metadata rather than archive contents.
 
-## How it works
+## Processing
 
 ```text
 Telegram
@@ -73,22 +73,22 @@ Telegram
 Archive received
    │
    ▼
-Format + security checks
+Validation
    │
    ▼
-Async job queue
+Async queue
    │
    ▼
 Secure extraction
    │
    ▼
-Upload extracted files
+Telegram upload
    │
    ▼
-Cleanup + statistics
+Cleanup
 ```
 
-## Project structure
+## Project Structure
 
 ```text
 Unzip-bot/
@@ -118,49 +118,41 @@ Unzip-bot/
 │       ├── progress.py
 │       ├── security.py
 │       └── formatting.py
+├── assets/
+│   └── unzip-bot-hero.svg
 ├── Dockerfile
 ├── compose.yaml
 ├── requirements.txt
 └── .env.example
 ```
 
-The idea is straightforward:
-
-- `plugins/` handles Telegram commands and callbacks
-- `utils/` handles downloading, extraction, uploading and cleanup
-- `handlers/` contains progress, security and formatting helpers
-- `database/` handles MongoDB operations
-- `bot.py` starts the application and connects the pieces together
-
 ## Commands
 
-### User commands
+### User
 
 | Command | Description |
 |---|---|
 | `/start` | Open the main bot panel |
-| `/help` | Show help and supported archive formats |
-| `/settings` | Configure user preferences |
+| `/help` | Show help and supported formats |
+| `/settings` | Configure preferences |
 | `/queue` | View queued and active jobs |
 | `/cancel` | Cancel waiting jobs |
 | `/stats` | View processing statistics |
 
-### Owner commands
+### Owner
 
 | Command | Description |
 |---|---|
 | `/admin` | View bot and job statistics |
-| `/broadcast <message>` | Send a message to registered users |
+| `/broadcast <message>` | Broadcast a message to registered users |
 
 ## Configuration
 
-Copy the example environment file:
+Create the environment file:
 
 ```bash
 cp .env.example .env
 ```
-
-Then configure the required Telegram credentials.
 
 | Variable | Description |
 |---|---|
@@ -168,54 +160,52 @@ Then configure the required Telegram credentials.
 | `API_HASH` | Telegram API hash |
 | `BOT_TOKEN` | Telegram bot token |
 | `MONGODB_URI` | MongoDB connection string |
-| `OWNER_ID` | Telegram user ID of the bot owner |
+| `OWNER_ID` | Telegram owner user ID |
 | `TEMP_DOWNLOAD_DIRECTORY` | Temporary working directory |
 | `MAX_ARCHIVE_SIZE_MB` | Maximum input archive size |
 | `MAX_EXTRACTED_SIZE_MB` | Maximum total extracted size |
-| `MAX_EXTRACTED_FILE_MB` | Maximum individual extracted file size |
-| `MAX_EXTRACTED_FILES` | Maximum number of extracted files |
-| `MAX_COMPRESSION_RATIO` | Maximum allowed compression ratio |
+| `MAX_EXTRACTED_FILE_MB` | Maximum individual file size |
+| `MAX_EXTRACTED_FILES` | Maximum archive members |
+| `MAX_COMPRESSION_RATIO` | Maximum compression ratio |
 | `MAX_CONCURRENT_JOBS` | Global concurrent job limit |
 | `MAX_JOBS_PER_USER` | Per-user job limit |
-| `AUTO_DELETE_HOURS` | Automatic cleanup window |
+| `AUTO_DELETE_HOURS` | Temporary cleanup window |
 | `PROGRESS_INTERVAL` | Progress update interval |
-| `START_IMAGE_URL` | Optional start-panel image |
-| `APP_NAME` | Bot application name |
+| `START_IMAGE_URL` | Optional start image |
+| `APP_NAME` | Application name |
 
-Keep `.env` private and never commit real credentials.
+Never commit real credentials.
 
-## Run locally
+## Local Setup
 
-### 1. Clone the repository
+Clone the repository:
 
 ```bash
 git clone https://github.com/TheJeager/Unzip-bot.git
 cd Unzip-bot
 ```
 
-### 2. Create a virtual environment
+Create a virtual environment:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Install dependencies
+Install dependencies:
 
 ```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. Configure the bot
+Configure the environment:
 
 ```bash
 cp .env.example .env
 ```
 
-Add your Telegram API credentials, bot token and other required settings.
-
-### 5. Start
+Start the bot:
 
 ```bash
 python3 -m src
@@ -223,68 +213,66 @@ python3 -m src
 
 ## Docker
 
-Build the image:
+Build:
 
 ```bash
-docker build -t archivex .
+docker build -t unzip-bot .
 ```
 
-Run it:
+Run:
 
 ```bash
-docker run --env-file .env archivex
+docker run --env-file .env unzip-bot
 ```
 
-The container uses a dedicated non-root user and `tini` for clean process handling.
+The container runs under a dedicated non-root user and uses a proper init process for clean shutdown handling.
 
 ## Docker Compose
 
-Start the bot:
+Start:
 
 ```bash
 docker compose up -d --build
 ```
 
-Stop it:
+Stop:
 
 ```bash
 docker compose down
 ```
 
-Temporary archive data is kept in a dedicated Docker volume.
+Temporary archive data is stored in a dedicated volume.
 
-## Runtime
-
-ArchiveX separates Telegram events from the actual archive work.
+## Runtime Model
 
 ```text
-Telegram handler
-      │
-      ▼
+Telegram Handler
+       │
+       ▼
     JobQueue
-   ┌──┼──┐
-   ▼  ▼  ▼
+   ┌───┼───┐
+   ▼   ▼   ▼
  Worker Worker Worker
-   │  │  │
-   └──┼──┘
-      ▼
-Secure extractor
-      │
-      ▼
-Telegram uploader
+   │   │   │
+   └───┼───┘
+       ▼
+Secure Extractor
+       │
+       ▼
+Telegram Uploader
 ```
 
-The global queue controls total concurrency while the per-user limit prevents a single user from occupying all available workers.
+The global queue controls overall concurrency while per-user limits stop a single account from consuming the entire worker pool.
 
 ## Progress
 
-The bot can report progress during:
+Progress can be reported during:
 
-- Archive download
-- Archive extraction
-- File upload
+- Download
+- Extraction
+- Upload
 
-Progress messages are throttled so the bot does not continuously edit the same Telegram message.
+Updates are throttled to avoid unnecessary Telegram API requests while keeping the status useful.
 
 ## Technology
 
@@ -301,24 +289,20 @@ Progress messages are throttled so the bot does not continuously edit the same T
 
 ## Contributing
 
-Pull requests and improvements are welcome.
+Contributions and improvements are welcome.
 
-For larger changes, keep the existing separation between Telegram handlers, processing utilities, database code and configuration.
+Keep new functionality separated according to the existing project structure so Telegram behavior, archive processing, security, persistence and configuration remain easy to maintain.
 
 ## License
 
-See the repository license file for the license terms.
-
-## Banner credit
-
-The Gojo Satoru artwork used in the README banner is the work of Aarlen and is published under **CC BY 4.0**. The image is used as a visual banner and is not part of the bot's source code.
+See the repository license file for the applicable terms.
 
 ---
 
 <div align="center">
 
-**ArchiveX**
+**Unzip Bot**
 
-A clean Telegram archive bot built with Python, Telethon and async processing.
+Fast archive processing directly inside Telegram.
 
 </div>
