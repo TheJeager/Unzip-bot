@@ -17,6 +17,13 @@ def _int(name: str, default: int | None = None) -> int:
     except ValueError as exc:
         raise ValueError(f"{name} must be an integer") from exc
 
+def _float(name: str, default: float) -> float:
+    value = os.getenv(name, str(default))
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number") from exc
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     api_id: int
@@ -64,7 +71,7 @@ SETTINGS = Settings(
     max_concurrent_jobs=_int("MAX_CONCURRENT_JOBS", 3),
     max_jobs_per_user=_int("MAX_JOBS_PER_USER", 1),
     auto_delete_hours=_int("AUTO_DELETE_HOURS", 4),
-    progress_interval=float(os.getenv("PROGRESS_INTERVAL", "1.5")),
+    progress_interval=_float("PROGRESS_INTERVAL", 1.5),
     start_image_url=os.getenv("START_IMAGE_URL", "").strip(),
     app_name=os.getenv("APP_NAME", "Unzip Bot").strip() or "Unzip Bot",
 )
@@ -75,5 +82,20 @@ if SETTINGS.api_id <= 0 or not SETTINGS.api_hash or not SETTINGS.bot_token:
 if SETTINGS.owner_id <= 0:
     raise ValueError("OWNER_ID must be a positive integer.")
 
-SETTINGS.temp_dir.mkdir(parents=True, exist_ok=True)
+if (
+    SETTINGS.max_archive_mb <= 0
+    or SETTINGS.max_extracted_mb <= 0
+    or SETTINGS.max_file_mb <= 0
+    or SETTINGS.max_files <= 0
+    or SETTINGS.max_ratio <= 0
+    or SETTINGS.max_concurrent_jobs <= 0
+    or SETTINGS.max_jobs_per_user <= 0
+    or SETTINGS.auto_delete_hours < 0
+    or SETTINGS.progress_interval <= 0
+):
+    raise ValueError("Archive and runtime limits must use valid positive values.")
 
+if SETTINGS.max_file_mb > SETTINGS.max_extracted_mb:
+    raise ValueError("MAX_EXTRACTED_FILE_MB cannot exceed MAX_EXTRACTED_SIZE_MB.")
+
+SETTINGS.temp_dir.mkdir(parents=True, exist_ok=True)
