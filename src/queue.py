@@ -15,6 +15,7 @@ class Job:
     filename: str
     created_at: datetime
     future: asyncio.Future | None = None
+    cancelled: bool = False
 
 class JobQueue:
     def __init__(self) -> None:
@@ -52,20 +53,17 @@ class JobQueue:
         return sum(job.user_id == user_id for job in self.active.values())
 
     def queued_for_user(self, user_id: int) -> int:
-        return sum(job.user_id == user_id for job in self.waiting)
+        return sum(job.user_id == user_id for job in self.waiting if not job.cancelled)
 
     async def cancel_user(self, user_id: int) -> int:
         removed = 0
-        kept: deque[Job] = deque()
-        while self.waiting:
-            job = self.waiting.popleft()
-            if job.user_id == user_id:
+        for job in self.waiting:
+            if job.user_id == user_id and not job.cancelled:
+                job.cancelled = True
                 removed += 1
                 if job.future and not job.future.done():
                     job.future.set_result(False)
-            else:
-                kept.append(job)
-        self.waiting = kept
+        self.waiting = deque(job for job in self.waiting if not job.cancelled)
         return removed
 
     async def _worker(self) -> None:
@@ -73,10 +71,16 @@ class JobQueue:
             job = await self.queue.get()
             if job in self.waiting:
                 self.waiting.remove(job)
+            if job.cancelled:
+                self.queue.task_done()
+                continue
             self.active[job.job_id] = job
             try:
                 async with self.global_limit, self.user_limits[job.user_id]:
-                    result = await self.handler(job) if self.handler else False
+                    if job.cancelled:
+                        result = False
+                    else:
+                        result = await self.handler(job) if self.handler else False
                     if job.future and not job.future.done():
                         job.future.set_result(result)
             except asyncio.CancelledError:
