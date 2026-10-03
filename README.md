@@ -1,62 +1,54 @@
 # ArchiveX
 
-A production-oriented Telegram archive extraction bot built with Telethon, MongoDB and a security-first extraction pipeline.
+A production-oriented Telegram archive extraction bot built with Telethon, PyMongo Async and an async worker queue.
 
-## Highlights
+## Features
 
-- ZIP and TAR-family extraction
+- ZIP, TAR, TAR.GZ, TGZ, TAR.BZ2, TBZ2, TAR.XZ and TXZ
 - Secure path validation
-- Symlink and special-file rejection
-- Archive, expanded-size, per-file, file-count and compression-ratio limits
-- Async worker queue with global and per-user concurrency controls
+- Symbolic-link and special-file rejection
+- Archive, expanded-size, file-count, per-file and compression-ratio limits
+- Global and per-user async queue limits
 - Live download, extraction and upload progress
-- MongoDB-backed users, jobs and operational statistics
-- Persistent auto-delete preference
-- Owner controls and broadcast support
-- Clean src package architecture
-- Non-root Docker image
-- Python 3.14 runtime
-- Graceful queue and database shutdown
+- Temporary-file cleanup
+- Optional MongoDB persistence using PyMongo Async
+- Owner statistics and broadcast tools
+- Non-root Docker runtime
+- `python3 -m src` startup
 
 ## Commands
 
-/start — Main control panel
-/help — Detailed help center
-/settings — User preferences
-/stats — Operational statistics
-/queue — Queue status
-/cancel — Cancel waiting jobs
-/admin — Owner panel
-/broadcast <text> — Owner announcement
-/maintenance — Maintenance status
+`/start` control panel
+`/help` help and limits
+`/settings` preferences
+`/queue` queue status
+`/cancel` cancel waiting jobs
+`/stats` aggregate counters
+`/admin` owner panel
+`/broadcast <message>` owner broadcast
 
-## Supported archives
+## Setup
 
-ZIP
-TAR
-TAR.GZ
-TGZ
-TAR.BZ2
-TBZ2
-TAR.XZ
-TXZ
+Copy `.env.example` to `.env`, fill in the Telegram credentials and optionally add MongoDB.
 
-## Security
-
-The extraction engine rejects traversal paths, symbolic links, hard links, device files, FIFOs and sockets. It also enforces archive size, expanded size, per-file size, file-count and compression-ratio limits.
-
-## Run
-
+```bash
 pip install -r requirements.txt
 python3 -m src
+```
 
 ## Docker
 
+```bash
 docker build -t archivex .
-docker run --env-file sample.env archivex
+docker run --env-file .env archivex
+```
 
-## Environment
+## Compose
 
-Configure API_ID, API_HASH and BOT_TOKEN. MongoDB enables persistent preferences, job metadata and aggregate statistics. OWNER_ID and LOG_GROUP_ID are optional.
+```bash
+docker compose up -d --build
+```
 
-Archive and queue limits are configurable with environment variables.
+## Security
+
+Archive contents are not stored in MongoDB. Extraction writes members individually after validation, rejects unsafe paths and special entries, and removes temporary working data after every job.
