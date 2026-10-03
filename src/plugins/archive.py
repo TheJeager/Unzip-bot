@@ -2,7 +2,9 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-from telethon import events
+from pyrogram import Client, filters
+from pyrogram.enums import ButtonStyle
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..config import SETTINGS
 from ..handlers import ArchiveSecurityError, ProgressReporter, format_bytes
@@ -12,7 +14,7 @@ from ..utils.extractor import archive_kind, extract, inspect
 from ..utils.queue import Job
 from ..utils.uploader import upload_file
 
-async def process_job(client, db, job: Job) -> bool:
+async def process_job(client: Client, db, job: Job) -> bool:
     status = await client.send_message(job.chat_id, f"⏬ Preparing **{job.filename}**")
     message_ids = [status.id]
     try:
@@ -21,19 +23,19 @@ async def process_job(client, db, job: Job) -> bool:
             root = Path(temp)
             archive_path = root / Path(job.filename).name
             output = root / "output"
-            source = await client.get_messages(job.chat_id, ids=job.message_id)
+            source = await client.get_messages(job.chat_id, job.message_id)
             if not source:
                 raise RuntimeError("Original archive message is unavailable.")
 
             download_reporter = ProgressReporter(status, "⏬ Downloading", SETTINGS.progress_interval)
 
-            def download_progress(current, total):
-                asyncio.create_task(download_reporter.update(current, total))
+            async def download_progress(current, total):
+                await download_reporter.update(current, total)
 
             await download_media(client, source, archive_path, download_progress)
             plan = inspect(archive_path, job.filename)
             await db.update_job(job.job_id, {"status": "extracting", "files": plan.files, "expanded_bytes": plan.expanded_bytes})
-            await status.edit(f"🔎 Validated **{plan.files}** files • **{format_bytes(plan.expanded_bytes)}** expanded")
+            await status.edit_text(f"🔎 Validated **{plan.files}** files • **{format_bytes(plan.expanded_bytes)}** expanded")
 
             extraction_reporter = ProgressReporter(status, "🗂 Extracting", SETTINGS.progress_interval)
 
@@ -46,15 +48,15 @@ async def process_job(client, db, job: Job) -> bool:
             uploaded = 0
             upload_reporter = ProgressReporter(status, "📤 Uploading", SETTINGS.progress_interval)
 
+            async def upload_progress(current, total):
+                await upload_reporter.update(uploaded + int(current), result.expanded_bytes)
+
             for path in files:
                 size = path.stat().st_size
-
-                def upload_progress(current, total, base=uploaded):
-                    asyncio.create_task(upload_reporter.update(base + int(current), result.expanded_bytes))
-
                 try:
                     sent = await upload_file(client, job.chat_id, path, job.message_id, upload_progress)
-                    message_ids.append(sent.id)
+                    if sent:
+                        message_ids.append(sent.id)
                     uploaded += size
                 except Exception as exc:
                     await db.increment("failed_uploads")
@@ -62,67 +64,125 @@ async def process_job(client, db, job: Job) -> bool:
 
             await db.update_job(job.job_id, {"status": "completed", "uploaded_bytes": uploaded})
             await db.increment("successful_jobs")
-            await status.edit(f"✅ **Completed**\n\n📦 Files: **{len(files)}**\n💾 Expanded: **{format_bytes(result.expanded_bytes)}**\n📤 Uploaded: **{format_bytes(uploaded)}**")
+            await status.edit_text(
+                f"✅ **Completed**
+
+📦 Files: **{len(files)}**
+💾 Expanded: **{format_bytes(result.expanded_bytes)}**
+📤 Uploaded: **{format_bytes(uploaded)}"
+            )
 
             user = await db.user(job.user_id)
             if user.get("auto_delete", True):
-                asyncio.create_task(delayed_message_cleanup(client, job.chat_id, message_ids + [job.message_id], SETTINGS.auto_delete_hours))
+                asyncio.create_task(
+                    delayed_message_cleanup(
+                        client,
+                        job.chat_id,
+                        message_ids + [job.message_id],
+                        SETTINGS.auto_delete_hours,
+                    )
+                )
             return True
     except ArchiveSecurityError as exc:
         await db.update_job(job.job_id, {"status": "rejected", "error": str(exc)[:1000]})
         await db.increment("rejected_jobs")
-        await status.edit(f"🛡️ **Archive rejected**\n\n{exc}")
+        await status.edit_text(f"🛡️ **Archive rejected**
+
+{exc}")
         return False
     except Exception as exc:
         await db.update_job(job.job_id, {"status": "failed", "error": str(exc)[:1000]})
         await db.increment("failed_jobs")
         try:
-            await status.edit(f"❌ **Job failed**\n\n{type(exc).__name__}: {exc}")
+            await status.edit_text(f"❌ **Job failed**
+
+{type(exc).__name__}: {exc}")
         except Exception:
             pass
         return False
 
-async def archive_message(event, queue, db):
-    message = event.message
-    if not message or not message.file:
+async def archive_message(client: Client, message, queue, db):
+    if not message.document:
         return
-    filename = message.file.name or "archive"
+    filename = message.document.file_name or "archive"
     if not archive_kind(filename):
         return
-    size = int(message.file.size or 0)
+    size = int(message.document.file_size or 0)
     if size > SETTINGS.max_archive_bytes:
-        await event.reply(f"❌ Archive exceeds **{SETTINGS.max_archive_mb} MB**.")
+        await message.reply_text(f"❌ Archive exceeds **{SETTINGS.max_archive_mb} MB**.")
         await db.increment("rejected_jobs")
         return
-    if queue.active_for_user(event.sender_id) + queue.queued_for_user(event.sender_id) >= SETTINGS.max_jobs_per_user:
-        await event.reply("⏳ You already have a job in progress. Use /queue.")
+    if queue.active_for_user(message.from_user.id) + queue.queued_for_user(message.from_user.id) >= SETTINGS.max_jobs_per_user:
+        await message.reply_text("⏳ You already have a job in progress. Use /queue.")
         return
-    job = await queue.submit(event.sender_id, event.chat_id, message.id, filename)
+    job = await queue.submit(message.from_user.id, message.chat.id, message.id, filename)
     await db.create_job(job.job_id, job.user_id, job.chat_id, job.message_id, job.filename)
-    await event.reply(f"🧾 Job **{job.job_id}** queued.")
+    await message.reply_text(
+        f"🧾 Job **{job.job_id}** queued.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🛑 Queue", callback_data="queue", style=ButtonStyle.DEFAULT)]
+        ]),
+    )
     try:
         await job.future
     except Exception:
         pass
 
-async def help_command(event):
-    await event.respond(f"**{SETTINGS.app_name} • Help**\n\nSend an archive as a Telegram document.\n\nSupported: ZIP, TAR, TAR.GZ, TGZ, TAR.BZ2, TBZ2, TAR.XZ, TXZ.\n\nLimits: **{SETTINGS.max_archive_mb} MB** archive, **{SETTINGS.max_extracted_mb} MB** expanded data, **{SETTINGS.max_file_mb} MB** per file, **{SETTINGS.max_files}** files and **{SETTINGS.max_ratio}x** compression ratio.\n\n/cancel — cancel waiting jobs\n/queue — queue status\n/stats — aggregate stats\n/settings — preferences")
+async def help_command(client: Client, message):
+    await message.reply_text(
+        f"**{SETTINGS.app_name} • Help**
 
-async def queue_command(event, queue):
+Send an archive as a Telegram document.
+
+Supported: ZIP, TAR, TAR.GZ, TGZ, TAR.BZ2, TBZ2, TAR.XZ, TXZ.
+
+Limits: **{SETTINGS.max_archive_mb} MB** archive, **{SETTINGS.max_extracted_mb} MB** expanded data, **{SETTINGS.max_file_mb} MB** per file, **{SETTINGS.max_files}** files and **{SETTINGS.max_ratio}x** compression ratio.
+
+/cancel — cancel waiting jobs
+/queue — queue status
+/stats — aggregate stats
+/settings — preferences"
+    )
+
+async def queue_command(client: Client, message, queue):
     state = queue.status()
-    await event.respond(f"**Queue**\n\nYour active: **{queue.active_for_user(event.sender_id)}**\nYour waiting: **{queue.queued_for_user(event.sender_id)}**\nGlobal active: **{state['active']}**\nGlobal waiting: **{state['queued']}**\nWorkers: **{state['workers']}**")
+    await message.reply_text(
+        f"**Queue**
 
-async def cancel_command(event, queue):
-    removed = await queue.cancel_user(event.sender_id)
-    await event.respond(f"🛑 Cancelled **{removed}** waiting job(s).")
+Your active: **{queue.active_for_user(message.from_user.id)}**
+Your waiting: **{queue.queued_for_user(message.from_user.id)}**
+Global active: **{state['active']}**
+Global waiting: **{state['queued']}**
+Workers: **{state['workers']}**"
+    )
 
-async def stats_command(event, db, queue):
+async def cancel_command(client: Client, message, queue):
+    removed = await queue.cancel_user(message.from_user.id)
+    await message.reply_text(f"🛑 Cancelled **{removed}** waiting job(s).")
+
+async def stats_command(client: Client, message, db, queue):
     values = await db.snapshot()
-    await event.respond(f"**Statistics**\n\nSuccessful: **{values.get('successful_jobs',0)}**\nFailed: **{values.get('failed_jobs',0)}**\nRejected: **{values.get('rejected_jobs',0)}**\nActive: **{queue.status()['active']}**")
+    await message.reply_text(
+        f"**Statistics**
 
-def register(client, db, queue):
-    client.add_event_handler(lambda e: archive_message(e, queue, db), events.NewMessage(func=lambda e: bool(e.message and e.message.file)))
-    client.add_event_handler(help_command, events.NewMessage(pattern=r"^/help(?:@\w+)?$"))
-    client.add_event_handler(lambda e: queue_command(e, queue), events.NewMessage(pattern=r"^/queue(?:@\w+)?$"))
-    client.add_event_handler(lambda e: cancel_command(e, queue), events.NewMessage(pattern=r"^/cancel(?:@\w+)?$"))
-    client.add_event_handler(lambda e: stats_command(e, db, queue), events.NewMessage(pattern=r"^/stats(?:@\w+)?$"))
+Successful: **{values.get('successful_jobs', 0)}**
+Failed: **{values.get('failed_jobs', 0)}**
+Rejected: **{values.get('rejected_jobs', 0)}**
+Active: **{queue.status()['active']}"
+    )
+
+def register(client: Client, db, queue) -> None:
+    async def archive_handler(client: Client, message):
+        await archive_message(client, message, queue, db)
+    async def queue_handler(client: Client, message):
+        await queue_command(client, message, queue)
+    async def cancel_handler(client: Client, message):
+        await cancel_command(client, message, queue)
+    async def stats_handler(client: Client, message):
+        await stats_command(client, message, db, queue)
+
+    client.add_handler(filters.MessageHandler(archive_handler, filters.document))
+    client.add_handler(filters.MessageHandler(help_command, filters.command("help")))
+    client.add_handler(filters.MessageHandler(queue_handler, filters.command("queue")))
+    client.add_handler(filters.MessageHandler(cancel_handler, filters.command("cancel")))
+    client.add_handler(filters.MessageHandler(stats_handler, filters.command("stats")))
