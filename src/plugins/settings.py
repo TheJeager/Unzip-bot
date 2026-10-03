@@ -1,11 +1,29 @@
-from telethon import Button, events
+from pyrogram import Client, filters
+from pyrogram.enums import ButtonStyle
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-async def settings(event, db):
-    user = await db.user(event.sender_id)
+def settings_markup(value: bool) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(
+            f"🧹 Auto-delete: {'ON' if value else 'OFF'}",
+            callback_data="toggle_delete",
+            style=ButtonStyle.SUCCESS if value else ButtonStyle.DANGER,
+        )],
+        [InlineKeyboardButton("‹ Back", callback_data="home", style=ButtonStyle.DEFAULT)],
+    ])
+
+async def settings(client: Client, message, db) -> None:
+    user = await db.user(message.from_user.id)
     value = bool(user.get("auto_delete", True))
-    await event.respond(f"**Settings**\n\n🧹 Auto-delete bot messages: **{'ON' if value else 'OFF'}**\n⏱ Cleanup window is configured by the deployment.",buttons=[[Button.inline(f"🧹 Auto-delete: {'ON' if value else 'OFF'}",b"toggle_delete")],[Button.inline("‹ Back",b"home")]])
+    await message.reply_text(
+        f"**Settings**
 
-def register(client, db):
-    async def handler(event):
-        await settings(event, db)
-    client.add_event_handler(handler, events.NewMessage(pattern=r"^/settings(?:@\w+)?$"))
+🧹 Auto-delete bot messages: **{'ON' if value else 'OFF'}**
+⏱ Cleanup window is configured by the deployment.",
+        reply_markup=settings_markup(value),
+    )
+
+def register(client: Client, db) -> None:
+    async def handler(client: Client, message):
+        await settings(client, message, db)
+    client.add_handler(filters.MessageHandler(handler, filters.command("settings")))
