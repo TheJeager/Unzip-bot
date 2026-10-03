@@ -20,7 +20,7 @@ async def run() -> None:
     await db.init()
     await queue.start()
     handlers.register()
-    await client.start(bot_token=SETTINGS.bot_token)
+    await client.start(bot_token=SETTINGS.telegram_credential)
     log.info("%s started with %s workers", SETTINGS.app_name, SETTINGS.max_concurrent_jobs)
     try:
         await client.run_until_disconnected()
