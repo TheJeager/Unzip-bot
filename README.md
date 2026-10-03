@@ -1,62 +1,62 @@
-# 🗃️ Files Unzip Bot
+# ArchiveX
 
-A clean, fast Telegram bot that **automatically decompresses ZIP files** and sends extracted files back to the user.
+A production-oriented Telegram archive extraction bot built with Telethon, MongoDB and a security-first extraction pipeline.
 
-![logo](https://placehold.co/1200x420/0f172a/e2e8f0?text=File+Unzip+Bot+)
+## Highlights
 
----
+- ZIP and TAR-family extraction
+- Secure path validation
+- Symlink and special-file rejection
+- Archive, expanded-size, per-file, file-count and compression-ratio limits
+- Async worker queue with global and per-user concurrency controls
+- Live download, extraction and upload progress
+- MongoDB-backed users, jobs and operational statistics
+- Persistent auto-delete preference
+- Owner controls and broadcast support
+- Clean src package architecture
+- Non-root Docker image
+- Python 3.14 runtime
+- Graceful queue and database shutdown
 
-## ✨ Highlights
+## Commands
 
-- 🚀 **Automatic ZIP extraction*
-- 🤖 Built with **Telethon `>=1.43.2`**
-- 📦 Smart upload flow for extracted files
-- 🧹 Auto-cleanup of temporary files after each task
-- 🔒 In-bot **Privacy Policy** and detailed **Help**
-- 🎛️ Better `/start` experience with inline buttons
+/start — Main control panel
+/help — Detailed help center
+/settings — User preferences
+/stats — Operational statistics
+/queue — Queue status
+/cancel — Cancel waiting jobs
+/admin — Owner panel
+/broadcast <text> — Owner announcement
+/maintenance — Maintenance status
 
----
+## Supported archives
 
-## 🧩 Commands & UI
+ZIP
+TAR
+TAR.GZ
+TGZ
+TAR.BZ2
+TBZ2
+TAR.XZ
+TXZ
 
-- `/start` → beautiful start message with quick action buttons
-- `/help` → detailed usage and limits
-- **Inline Buttons**:
-  - `📘 Help & Usage`
-  - `🔒 Privacy Policy`
+## Security
 
----
+The extraction engine rejects traversal paths, symbolic links, hard links, device files, FIFOs and sockets. It also enforces archive size, expanded size, per-file size, file-count and compression-ratio limits.
 
-## ⚙️ Configuration
+## Run
 
-Create environment variables:
-
-- `API_ID`
-- `API_HASH`
-- `BOT_TOKEN`
-- `TEMP_DOWNLOAD_DIRECTORY` (optional, default: `./temp_downloads`)
-- `MAX_ARCHIVE_SIZE_MB` (optional, default: ``)
-
----
-
-## 🛠️ Installation
-
-```bash
 pip install -r requirements.txt
-python main.py
-```
+python3 -m src
 
----
+## Docker
 
-## 🔐 Privacy Policy (Summary)
+docker build -t archivex .
+docker run --env-file sample.env archivex
 
-- Files are processed only to extract and return contents.
-- Temporary files are deleted automatically after processing.
-- No permanent storage of user file contents by design.
+## Environment
 
----
+Configure API_ID, API_HASH and BOT_TOKEN. MongoDB enables persistent preferences, job metadata and aggregate statistics. OWNER_ID and LOG_GROUP_ID are optional.
 
-## 📌 Notes
-
-- Current optimized workflow supports ZIP archives.
-- If you deploy on cloud/VPS, make sure enough disk is available for temporary extraction.
+Archive and queue limits are configurable with environment variables.
