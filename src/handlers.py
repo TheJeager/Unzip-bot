@@ -5,7 +5,7 @@ from pathlib import Path
 from telethon import events
 
 from .archive import ArchiveSecurityError, archive_kind, extract, inspect
-from .config import SETTINGS
+from . import SETTINGS
 from .database import Database
 from .queue import Job, JobQueue
 from .ui import back_button, commands_text, help_text, home_text, privacy_text, settings_buttons, settings_text, start_buttons
