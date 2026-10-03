@@ -1,16 +1,33 @@
-from telethon import Button, events
+from pyrogram import Client, filters
+from pyrogram.enums import ButtonStyle
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..config import SETTINGS
 
-def buttons():
-    return [[Button.inline("📦 Help", b"help"), Button.inline("⚙️ Settings", b"settings")],[Button.inline("📚 Commands", b"commands"), Button.inline("🔐 Privacy", b"privacy")]]
+def buttons() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("📦 Help", callback_data="help", style=ButtonStyle.PRIMARY),
+            InlineKeyboardButton("⚙️ Settings", callback_data="settings", style=ButtonStyle.DEFAULT),
+        ],
+        [
+            InlineKeyboardButton("📚 Commands", callback_data="commands", style=ButtonStyle.SUCCESS),
+            InlineKeyboardButton("🔐 Privacy", callback_data="privacy", style=ButtonStyle.DEFAULT),
+        ],
+    ])
 
 def home_text(name: str) -> str:
-    return f"**{SETTINGS.app_name}**\n\nWelcome, **{name}**.\n\nSend a ZIP or TAR-family archive as a document and I will validate, extract and upload its contents securely.\n\nUse /help for limits and commands."
+    return f"**{SETTINGS.app_name}**
 
-async def start(event):
-    name = getattr(event.sender, "first_name", None) or "there"
-    await event.respond(home_text(name), buttons=buttons(), link_preview=False)
+Welcome, **{name}**.
 
-def register(client):
-    client.add_event_handler(start, events.NewMessage(pattern=r"^/start(?:@\w+)?$"))
+Send a ZIP or TAR-family archive as a document and I will validate, extract and upload its contents securely.
+
+Use /help for limits and commands."
+
+async def start(client: Client, message):
+    name = message.from_user.first_name if message.from_user else "there"
+    await message.reply_text(home_text(name or "there"), reply_markup=buttons(), disable_web_page_preview=True)
+
+def register(client: Client) -> None:
+    client.add_handler(filters.MessageHandler(start, filters.command("start")))
