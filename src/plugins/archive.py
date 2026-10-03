@@ -3,9 +3,7 @@ import tempfile
 from pathlib import Path
 
 from pyrogram import Client, filters
-from pyrogram.enums import ButtonStyle
 from pyrogram.handlers import MessageHandler
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..config import SETTINGS
 from ..handlers import ArchiveSecurityError, ProgressReporter, format_bytes
