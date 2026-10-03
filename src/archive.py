@@ -41,6 +41,7 @@ def inspect_zip(path: Path) -> ArchivePlan:
     archive_bytes = path.stat().st_size
     files = 0
     extracted = 0
+    seen: set[str] = set()
     with zipfile.ZipFile(path) as archive:
         for member in archive.infolist():
             if member.is_dir():
@@ -49,6 +50,10 @@ def inspect_zip(path: Path) -> ArchivePlan:
             if is_symlink_mode(mode) or is_special_mode(mode):
                 raise ArchiveSecurityError(f"Unsupported special entry: {member.filename}")
             safe_member_path(Path("/tmp"), member.filename)
+            normalized = member.filename.replace("\\", "/")
+            if normalized in seen:
+                raise ArchiveSecurityError(f"Duplicate archive entry: {member.filename}")
+            seen.add(normalized)
             size = int(member.file_size)
             if size < 0:
                 raise ArchiveSecurityError("Archive contains an invalid size.")
@@ -63,6 +68,7 @@ def inspect_tar(path: Path) -> ArchivePlan:
     archive_bytes = path.stat().st_size
     files = 0
     extracted = 0
+    seen: set[str] = set()
     with tarfile.open(path, "r:*") as archive:
         for member in archive.getmembers():
             if member.isdir():
@@ -70,6 +76,10 @@ def inspect_tar(path: Path) -> ArchivePlan:
             if member.issym() or member.islnk() or is_special_mode(member.mode):
                 raise ArchiveSecurityError(f"Unsupported special entry: {member.name}")
             safe_member_path(Path("/tmp"), member.name)
+            normalized = member.name.replace("\\", "/")
+            if normalized in seen:
+                raise ArchiveSecurityError(f"Duplicate archive entry: {member.name}")
+            seen.add(normalized)
             size = max(0, int(member.size))
             if size > SETTINGS.max_file_mb * 1024 * 1024:
                 raise ArchiveSecurityError(f"File exceeds {SETTINGS.max_file_mb} MB.")
