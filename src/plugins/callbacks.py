@@ -1,5 +1,6 @@
-from pyrogram import Client, filters
+from pyrogram import Client
 from pyrogram.enums import ButtonStyle
+from pyrogram.handlers import CallbackQueryHandler
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from .start import buttons, home_text
@@ -16,8 +17,7 @@ async def callback(client: Client, query, db) -> None:
     user = await db.user(query.from_user.id)
 
     if data == "home":
-        name = query.from_user.first_name or "there"
-        await query.message.edit_text(home_text(name), reply_markup=buttons())
+        await query.message.edit_text(home_text(query.from_user.first_name or "there"), reply_markup=buttons())
     elif data == "help":
         await query.message.edit_text(
             f"**{SETTINGS.app_name} • Help**
@@ -56,11 +56,12 @@ Temporary archive data is processed locally and removed after the job. MongoDB s
             reply_markup=back_markup(),
         )
     elif data == "settings":
+        value = bool(user.get("auto_delete", True))
         await query.message.edit_text(
             f"**Settings**
 
-Auto-delete: **{'ON' if user.get('auto_delete', True) else 'OFF'}**",
-            reply_markup=settings_markup(bool(user.get("auto_delete", True))),
+Auto-delete: **{'ON' if value else 'OFF'}**",
+            reply_markup=settings_markup(value),
         )
     elif data == "toggle_delete":
         value = not bool(user.get("auto_delete", True))
@@ -77,4 +78,4 @@ Auto-delete: **{'ON' if value else 'OFF'}**",
 def register(client: Client, db) -> None:
     async def handler(client: Client, query):
         await callback(client, query, db)
-    client.add_handler(filters.CallbackQueryHandler(handler))
+    client.add_handler(CallbackQueryHandler(handler))
