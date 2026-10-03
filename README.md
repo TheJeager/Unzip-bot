@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://github.com/TheJeager/Unzip-bot">
-  <img src="https://raw.githubusercontent.com/TheJeager/Unzip-bot/main/assets/archivex-hero.svg" alt="ArchiveX animated banner" width="100%">
+  <img src="https://raw.githubusercontent.com/TheJeager/Unzip-bot/main/assets/Unzip-Bot-hero.svg" alt="Unzip-bot animated banner" width="100%">
 </a>
 
 <br>
