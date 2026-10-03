@@ -6,8 +6,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def _int(name: str, default: int) -> int:
-    value = os.getenv(name, str(default))
+def _int(name: str, default: int | None = None) -> int:
+    value = os.getenv(name)
+    if value is None:
+        if default is None:
+            raise ValueError(f"{name} is required")
+        value = str(default)
     try:
         return int(value)
     except ValueError as exc:
@@ -62,7 +66,7 @@ SETTINGS = Settings(
     auto_delete_hours=_int("AUTO_DELETE_HOURS", 4),
     progress_interval=float(os.getenv("PROGRESS_INTERVAL", "1.5")),
     start_image_url=os.getenv("START_IMAGE_URL", "").strip(),
-    app_name=os.getenv("APP_NAME", "ArchiveX").strip() or "ArchiveX",
+    app_name=os.getenv("APP_NAME", "Unzip Bot").strip() or "Unzip Bot",
 )
 
 if SETTINGS.api_id <= 0 or not SETTINGS.api_hash or not SETTINGS.bot_token:
@@ -72,3 +76,4 @@ if SETTINGS.owner_id <= 0:
     raise ValueError("OWNER_ID must be a positive integer.")
 
 SETTINGS.temp_dir.mkdir(parents=True, exist_ok=True)
+
