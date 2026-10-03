@@ -23,5 +23,5 @@
 <text x="114" y="245" fill="#a9dff0" font-family="Inter,Arial,sans-serif" font-size="25">Fast • Secure • Asynchronous Telegram Archive Extraction</text>
 <rect x="114" y="278" width="340" height="3" rx="2" fill="url(#glow)">
 <animate attributeName="width" values="120;340;120" dur="4s" repeatCount="indefinite"/></rect>
-<text x="114" y="326" fill="#7edfff" font-family="monospace" font-size="16">PYTHON 3.14  /  TELETHON  /  MONGODB</text>
+<text x="114" y="326" fill="#7edfff" font-family="monospace" font-size="16">PYTHON 3.14  /  KURIGRAM 2.2.26  /  MONGODB</text>
 </svg>
