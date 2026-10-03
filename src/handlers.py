@@ -220,8 +220,8 @@ class BotHandlers:
                 original = await self.client.get_messages(job.chat_id, ids=job.message_id)
                 if not original:
                     raise RuntimeError("Original archive message is unavailable.")
-                async def download_progress(current, total):
-                    await reporter.update(current, total)
+                def download_progress(current, total):
+                    asyncio.create_task(reporter.update(current, total))
                 await self.client.download_media(original, file=str(archive_path), progress_callback=download_progress)
                 plan = inspect(archive_path, job.filename)
                 await self.db.update_job(job.job_id, {"status": "extracting", "files": plan.files, "expanded_bytes": plan.extracted_bytes})
@@ -240,8 +240,8 @@ class BotHandlers:
                 upload_reporter = Progress(status, f"📤 Uploading {len(files)} files")
                 for path in files:
                     file_size = path.stat().st_size
-                    async def upload_progress(current, total, base=uploaded):
-                        await upload_reporter.update(base + current, result.extracted_bytes)
+                    def upload_progress(current, total, base=uploaded):
+                        asyncio.create_task(upload_reporter.update(base + int(current), result.extracted_bytes))
                     try:
                         sent = await self.client.send_file(job.chat_id, str(path), force_document=True, allow_cache=False, reply_to=job.message_id, progress_callback=upload_progress)
                         message_ids.append(sent.id)
