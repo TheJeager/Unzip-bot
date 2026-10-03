@@ -1,28 +1,80 @@
-from telethon import Button, events
+from pyrogram import Client, filters
+from pyrogram.enums import ButtonStyle
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from .start import buttons, home_text
+from .settings import settings_markup
 from ..config import SETTINGS
 
-async def callback(event, db):
-    data = event.data.decode()
-    user = await db.user(event.sender_id)
+def back_markup() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("‹ Back", callback_data="home", style=ButtonStyle.DEFAULT)]
+    ])
+
+async def callback(client: Client, query, db) -> None:
+    data = query.data or ""
+    user = await db.user(query.from_user.id)
+
     if data == "home":
-        name = getattr(event.sender, "first_name", None) or "there"
-        await event.edit(home_text(name), buttons=buttons())
+        name = query.from_user.first_name or "there"
+        await query.message.edit_text(home_text(name), reply_markup=buttons())
     elif data == "help":
-        await event.edit(f"**{SETTINGS.app_name} • Help**\n\n/start — Control panel\n/help — Help center\n/settings — Preferences\n/queue — Queue status\n/cancel — Cancel waiting jobs\n/stats — Statistics\n\nSupported: ZIP, TAR, TAR.GZ, TGZ, TAR.BZ2, TBZ2, TAR.XZ and TXZ.\n\nSecurity limits cover archive size, expanded size, file count, per-file size, compression ratio, path traversal and special files.",buttons=[[Button.inline("‹ Back",b"home")]])
+        await query.message.edit_text(
+            f"**{SETTINGS.app_name} • Help**
+
+/start — Control panel
+/help — Help center
+/settings — Preferences
+/queue — Queue status
+/cancel — Cancel waiting jobs
+/stats — Statistics
+
+Supported: ZIP, TAR, TAR.GZ, TGZ, TAR.BZ2, TBZ2, TAR.XZ and TXZ.
+
+Security limits cover archive size, expanded size, file count, per-file size, compression ratio, path traversal and special files.",
+            reply_markup=back_markup(),
+        )
     elif data == "commands":
-        await event.edit("**Commands**\n\n/start\n/help\n/settings\n/queue\n/cancel\n/stats\n\nOwner: /admin and /broadcast",buttons=[[Button.inline("‹ Back",b"home")]])
+        await query.message.edit_text(
+            "**Commands**
+
+/start
+/help
+/settings
+/queue
+/cancel
+/stats
+
+Owner: /admin and /broadcast",
+            reply_markup=back_markup(),
+        )
     elif data == "privacy":
-        await event.edit("**Privacy**\n\nTemporary archive data is processed locally and removed after the job. MongoDB stores only preferences, job metadata and aggregate counters when configured.",buttons=[[Button.inline("‹ Back",b"home")]])
+        await query.message.edit_text(
+            "**Privacy**
+
+Temporary archive data is processed locally and removed after the job. MongoDB stores only preferences, job metadata and aggregate counters when configured.",
+            reply_markup=back_markup(),
+        )
     elif data == "settings":
-        value = bool(user.get("auto_delete", True))
-        await event.edit(f"**Settings**\n\nAuto-delete: **{'ON' if value else 'OFF'}**",buttons=[[Button.inline(f"🧹 Auto-delete: {'ON' if value else 'OFF'}",b"toggle_delete")],[Button.inline("‹ Back",b"home")]])
+        await query.message.edit_text(
+            f"**Settings**
+
+Auto-delete: **{'ON' if user.get('auto_delete', True) else 'OFF'}**",
+            reply_markup=settings_markup(bool(user.get("auto_delete", True))),
+        )
     elif data == "toggle_delete":
         value = not bool(user.get("auto_delete", True))
-        await db.update_user(event.sender_id, {"auto_delete": value})
-        await event.edit(f"**Settings**\n\nAuto-delete: **{'ON' if value else 'OFF'}**",buttons=[[Button.inline(f"🧹 Auto-delete: {'ON' if value else 'OFF'}",b"toggle_delete")],[Button.inline("‹ Back",b"home")]])
-    await event.answer()
+        await db.update_user(query.from_user.id, {"auto_delete": value})
+        await query.message.edit_text(
+            f"**Settings**
 
-def register(client, db):
-    client.add_event_handler(lambda event: callback(event, db), events.CallbackQuery())
+Auto-delete: **{'ON' if value else 'OFF'}**",
+            reply_markup=settings_markup(value),
+        )
+
+    await query.answer()
+
+def register(client: Client, db) -> None:
+    async def handler(client: Client, query):
+        await callback(client, query, db)
+    client.add_handler(filters.CallbackQueryHandler(handler))
