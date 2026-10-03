@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.enums import ButtonStyle
+from pyrogram.handlers import MessageHandler
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 def settings_markup(value: bool) -> InlineKeyboardMarkup:
@@ -26,4 +27,4 @@ async def settings(client: Client, message, db) -> None:
 def register(client: Client, db) -> None:
     async def handler(client: Client, message):
         await settings(client, message, db)
-    client.add_handler(filters.MessageHandler(handler, filters.command("settings")))
+    client.add_handler(MessageHandler(handler, filters.command("settings")))
