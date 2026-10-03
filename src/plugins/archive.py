@@ -4,6 +4,7 @@ from pathlib import Path
 
 from pyrogram import Client, filters
 from pyrogram.enums import ButtonStyle
+from pyrogram.handlers import MessageHandler
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..config import SETTINGS
@@ -48,11 +49,12 @@ async def process_job(client: Client, db, job: Job) -> bool:
             uploaded = 0
             upload_reporter = ProgressReporter(status, "📤 Uploading", SETTINGS.progress_interval)
 
-            async def upload_progress(current, total):
-                await upload_reporter.update(uploaded + int(current), result.expanded_bytes)
-
             for path in files:
                 size = path.stat().st_size
+
+                async def upload_progress(current, total, base=uploaded):
+                    await upload_reporter.update(base + int(current), result.expanded_bytes)
+
                 try:
                     sent = await upload_file(client, job.chat_id, path, job.message_id, upload_progress)
                     if sent:
@@ -69,7 +71,7 @@ async def process_job(client: Client, db, job: Job) -> bool:
 
 📦 Files: **{len(files)}**
 💾 Expanded: **{format_bytes(result.expanded_bytes)}**
-📤 Uploaded: **{format_bytes(uploaded)}"
+📤 Uploaded: **{format_bytes(uploaded)}**"
             )
 
             user = await db.user(job.user_id)
@@ -102,7 +104,7 @@ async def process_job(client: Client, db, job: Job) -> bool:
         return False
 
 async def archive_message(client: Client, message, queue, db):
-    if not message.document:
+    if not message.document or not message.from_user:
         return
     filename = message.document.file_name or "archive"
     if not archive_kind(filename):
@@ -117,12 +119,7 @@ async def archive_message(client: Client, message, queue, db):
         return
     job = await queue.submit(message.from_user.id, message.chat.id, message.id, filename)
     await db.create_job(job.job_id, job.user_id, job.chat_id, job.message_id, job.filename)
-    await message.reply_text(
-        f"🧾 Job **{job.job_id}** queued.",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🛑 Queue", callback_data="queue", style=ButtonStyle.DEFAULT)]
-        ]),
-    )
+    await message.reply_text(f"🧾 Job **{job.job_id}** queued.")
     try:
         await job.future
     except Exception:
@@ -168,7 +165,7 @@ async def stats_command(client: Client, message, db, queue):
 Successful: **{values.get('successful_jobs', 0)}**
 Failed: **{values.get('failed_jobs', 0)}**
 Rejected: **{values.get('rejected_jobs', 0)}**
-Active: **{queue.status()['active']}"
+Active: **{queue.status()['active']}**"
     )
 
 def register(client: Client, db, queue) -> None:
@@ -181,8 +178,8 @@ def register(client: Client, db, queue) -> None:
     async def stats_handler(client: Client, message):
         await stats_command(client, message, db, queue)
 
-    client.add_handler(filters.MessageHandler(archive_handler, filters.document))
-    client.add_handler(filters.MessageHandler(help_command, filters.command("help")))
-    client.add_handler(filters.MessageHandler(queue_handler, filters.command("queue")))
-    client.add_handler(filters.MessageHandler(cancel_handler, filters.command("cancel")))
-    client.add_handler(filters.MessageHandler(stats_handler, filters.command("stats")))
+    client.add_handler(MessageHandler(archive_handler, filters.document))
+    client.add_handler(MessageHandler(help_command, filters.command("help")))
+    client.add_handler(MessageHandler(queue_handler, filters.command("queue")))
+    client.add_handler(MessageHandler(cancel_handler, filters.command("cancel")))
+    client.add_handler(MessageHandler(stats_handler, filters.command("stats")))
