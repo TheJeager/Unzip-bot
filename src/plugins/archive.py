@@ -65,11 +65,7 @@ async def process_job(client: Client, db, job: Job) -> bool:
             await db.update_job(job.job_id, {"status": "completed", "uploaded_bytes": uploaded})
             await db.increment("successful_jobs")
             await status.edit_text(
-                f"✅ **Completed**
-
-📦 Files: **{len(files)}**
-💾 Expanded: **{format_bytes(result.expanded_bytes)}**
-📤 Uploaded: **{format_bytes(uploaded)}**"
+                f"""✅ **Completed**\n\n📦 Files: **{len(files)}**\n💾 Expanded: **{format_bytes(result.expanded_bytes)}**\n📤 Uploaded: **{format_bytes(uploaded)}**"""
             )
 
             user = await db.user(job.user_id)
@@ -86,17 +82,13 @@ async def process_job(client: Client, db, job: Job) -> bool:
     except ArchiveSecurityError as exc:
         await db.update_job(job.job_id, {"status": "rejected", "error": str(exc)[:1000]})
         await db.increment("rejected_jobs")
-        await status.edit_text(f"🛡️ **Archive rejected**
-
-{exc}")
+        await status.edit_text(f"""🛡️ **Archive rejected**\n\n{exc}""")
         return False
     except Exception as exc:
         await db.update_job(job.job_id, {"status": "failed", "error": str(exc)[:1000]})
         await db.increment("failed_jobs")
         try:
-            await status.edit_text(f"❌ **Job failed**
-
-{type(exc).__name__}: {exc}")
+            await status.edit_text(f"""❌ **Job failed**\n\n{type(exc).__name__}: {exc}""")
         except Exception:
             pass
         return False
@@ -142,13 +134,7 @@ Limits: **{SETTINGS.max_archive_mb} MB** archive, **{SETTINGS.max_extracted_mb} 
 async def queue_command(client: Client, message, queue):
     state = queue.status()
     await message.reply_text(
-        f"**Queue**
-
-Your active: **{queue.active_for_user(message.from_user.id)}**
-Your waiting: **{queue.queued_for_user(message.from_user.id)}**
-Global active: **{state['active']}**
-Global waiting: **{state['queued']}**
-Workers: **{state['workers']}**"
+        f"""**Queue**\n\nYour active: **{queue.active_for_user(message.from_user.id)}**\nYour waiting: **{queue.queued_for_user(message.from_user.id)}**\nGlobal active: **{state['active']}**\nGlobal waiting: **{state['queued']}**\nWorkers: **{state['workers']}**"""
     )
 
 async def cancel_command(client: Client, message, queue):
@@ -158,12 +144,7 @@ async def cancel_command(client: Client, message, queue):
 async def stats_command(client: Client, message, db, queue):
     values = await db.snapshot()
     await message.reply_text(
-        f"**Statistics**
-
-Successful: **{values.get('successful_jobs', 0)}**
-Failed: **{values.get('failed_jobs', 0)}**
-Rejected: **{values.get('rejected_jobs', 0)}**
-Active: **{queue.status()['active']}**"
+        f"""**Statistics**\n\nSuccessful: **{values.get('successful_jobs', 0)}**\nFailed: **{values.get('failed_jobs', 0)}**\nRejected: **{values.get('rejected_jobs', 0)}**\nActive: **{queue.status()['active']}**"""
     )
 
 def register(client: Client, db, queue) -> None:
