@@ -1,5 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.enums import ButtonStyle
+from pyrogram.handlers import MessageHandler
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..config import SETTINGS
@@ -30,4 +31,4 @@ async def start(client: Client, message):
     await message.reply_text(home_text(name or "there"), reply_markup=buttons(), disable_web_page_preview=True)
 
 def register(client: Client) -> None:
-    client.add_handler(filters.MessageHandler(start, filters.command("start")))
+    client.add_handler(MessageHandler(start, filters.command("start")))
