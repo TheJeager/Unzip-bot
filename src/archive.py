@@ -4,7 +4,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .config import SETTINGS
+from . import SETTINGS
 from .security import ArchiveSecurityError, is_special_mode, is_symlink_mode, safe_member_path, validate_output_tree
 
 @dataclass(slots=True)
