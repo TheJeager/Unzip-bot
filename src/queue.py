@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from .config import SETTINGS
+from . import SETTINGS
 
 @dataclass(slots=True)
 class Job:
