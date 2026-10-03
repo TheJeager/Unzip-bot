@@ -1,32 +1,46 @@
 import asyncio
-from telethon import events
+
+from pyrogram import Client, filters
 
 from ..config import SETTINGS
 
-async def admin(event, db, queue):
-    if event.sender_id != SETTINGS.owner_id:
+async def admin(client: Client, message, db, queue) -> None:
+    if message.from_user.id != SETTINGS.owner_id:
         return
     state = queue.status()
     values = await db.snapshot()
-    await event.respond(f"**{SETTINGS.app_name} • Owner Panel**\n\nUsers: **{await db.user_count()}**\nActive: **{state['active']}**\nWaiting: **{state['queued']}**\nSuccessful: **{values.get('successful_jobs',0)}**\nFailed: **{values.get('failed_jobs',0)}**\nRejected: **{values.get('rejected_jobs',0)}**")
+    await message.reply_text(
+        f"**{SETTINGS.app_name} • Owner Panel**
 
-async def broadcast(event, db, client):
-    if event.sender_id != SETTINGS.owner_id:
+Users: **{await db.user_count()}**
+Active: **{state['active']}**
+Waiting: **{state['queued']}**
+Successful: **{values.get('successful_jobs', 0)}**
+Failed: **{values.get('failed_jobs', 0)}**
+Rejected: **{values.get('rejected_jobs', 0)}**"
+    )
+
+async def broadcast(client: Client, message, db) -> None:
+    if message.from_user.id != SETTINGS.owner_id:
         return
-    text = event.pattern_match.group(1)
-    if not text:
-        await event.respond("Usage: /broadcast <message>")
+    text = message.text.split(maxsplit=1)
+    if len(text) < 2:
+        await message.reply_text("Usage: /broadcast <message>")
         return
     sent = 0
     async for user_id in db.user_ids():
         try:
-            await client.send_message(user_id, text)
+            await client.send_message(user_id, text[1])
             sent += 1
         except Exception:
             pass
         await asyncio.sleep(0.05)
-    await event.respond(f"📣 Broadcast delivered to **{sent}** users.")
+    await message.reply_text(f"📣 Broadcast delivered to **{sent}** users.")
 
-def register(client, db, queue):
-    client.add_event_handler(lambda event: admin(event, db, queue), events.NewMessage(pattern=r"^/admin(?:@\w+)?$"))
-    client.add_event_handler(lambda event: broadcast(event, db, client), events.NewMessage(pattern=r"^/broadcast(?:@\w+)?\s+(.+)$"))
+def register(client: Client, db, queue) -> None:
+    async def admin_handler(client: Client, message):
+        await admin(client, message, db, queue)
+    async def broadcast_handler(client: Client, message):
+        await broadcast(client, message, db)
+    client.add_handler(filters.MessageHandler(admin_handler, filters.command("admin")))
+    client.add_handler(filters.MessageHandler(broadcast_handler, filters.command("broadcast")))
