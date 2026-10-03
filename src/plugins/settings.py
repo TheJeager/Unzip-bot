@@ -17,10 +17,10 @@ async def settings(client: Client, message, db) -> None:
     user = await db.user(message.from_user.id)
     value = bool(user.get("auto_delete", True))
     await message.reply_text(
-        f"**Settings**
+        f"""**Settings**
 
 🧹 Auto-delete bot messages: **{'ON' if value else 'OFF'}**
-⏱ Cleanup window is configured by the deployment.",
+⏱ Cleanup window is configured by the deployment.""",
         reply_markup=settings_markup(value),
     )
 
