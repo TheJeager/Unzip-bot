@@ -10,7 +10,7 @@
 [![Forks](https://img.shields.io/github/forks/TheJeager/Unzip-bot?style=for-the-badge)](https://github.com/TheJeager/Unzip-bot/network/members)
 [![License](https://img.shields.io/github/license/TheJeager/Unzip-bot?style=for-the-badge)](https://github.com/TheJeager/Unzip-bot)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Telethon](https://img.shields.io/badge/Telethon-1.45.0-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://github.com/LonamiWebs/Telethon)
+[![Kurigram](https://img.shields.io/badge/Kurigram-2.2.26-2CA5E0?style=flat-square&logo=telegram&logoColor=white)](https://github.com/kurigram-org/kurigram)
 [![PyMongo](https://img.shields.io/badge/PyMongo-4.18.2-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/docs/languages/python/pymongo-driver/)
 [![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 
@@ -279,7 +279,7 @@ Updates are throttled to avoid unnecessary Telegram API requests while keeping t
 | Component | Technology |
 |---|---|
 | Language | Python 3.14 |
-| Telegram framework | Telethon 1.45.0 |
+| Telegram framework | Kurigram 2.2.26 |
 | Database driver | PyMongo 4.18.2 |
 | Database | MongoDB |
 | Concurrency | asyncio |
