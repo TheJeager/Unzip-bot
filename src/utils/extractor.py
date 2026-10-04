@@ -149,8 +149,14 @@ def _extract_tar(path: Path, output: Path, callback) -> list[Path]:
     return result
 
 
-async def extract(path: Path, filename: str, output: Path, callback) -> ExtractionResult:
-    plan = inspect(path, filename)
+async def extract(
+    path: Path,
+    filename: str,
+    output: Path,
+    callback,
+    plan: ArchivePlan | None = None,
+) -> ExtractionResult:
+    plan = plan or inspect(path, filename)
     output.mkdir(parents=True, exist_ok=True)
     loop = asyncio.get_running_loop()
 
