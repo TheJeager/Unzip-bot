@@ -15,10 +15,12 @@ from ..utils.uploader import upload_file
 
 
 async def process_job(client: Client, db, job: Job) -> bool:
-    status = await client.send_message(job.chat_id, f"⏬ Preparing **{job.filename}**")
-    message_ids = [status.id]
+    status = None
+    message_ids = []
 
     try:
+        status = await client.send_message(job.chat_id, f"⏬ Preparing **{job.filename}**")
+        message_ids.append(status.id)
         await db.update_job(job.job_id, {"status": "downloading"})
 
         async with tempfile.TemporaryDirectory(
@@ -199,12 +201,13 @@ async def process_job(client: Client, db, job: Job) -> bool:
             {"status": "rejected", "error": str(exc)[:1000]},
         )
         await db.increment("rejected_jobs")
-        try:
-            await status.edit_text(f"🛡️ **Archive rejected**
+        if status:
+            try:
+                await status.edit_text(f"🛡️ **Archive rejected**
 
 {exc}")
-        except Exception:
-            pass
+            except Exception:
+                pass
         return False
 
     except Exception as exc:
@@ -213,14 +216,15 @@ async def process_job(client: Client, db, job: Job) -> bool:
             {"status": "failed", "error": str(exc)[:1000]},
         )
         await db.increment("failed_jobs")
-        try:
-            await status.edit_text(
-                f"❌ **Job failed**
+        if status:
+            try:
+                await status.edit_text(
+                    f"❌ **Job failed**
 
 {type(exc).__name__}: {exc}"
-            )
-        except Exception:
-            pass
+                )
+            except Exception:
+                pass
         return False
 
 
