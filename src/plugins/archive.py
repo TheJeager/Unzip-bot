@@ -299,9 +299,14 @@ Workers: **{state['workers']}**"""
     )
 
 
-async def cancel_command(client: Client, message, queue):
-    removed = await queue.cancel_user(message.from_user.id)
-    await message.reply_text(f"🛑 Cancelled **{removed}** waiting job(s).")
+async def cancel_command(client: Client, message, queue, db):
+    jobs = await queue.cancel_user(message.from_user.id)
+    for job in jobs:
+        await db.update_job(
+            job.job_id,
+            {"status": "cancelled", "error": "Cancelled by user."},
+        )
+    await message.reply_text(f"🛑 Cancelled **{len(jobs)}** waiting job(s).")
 
 
 async def stats_command(client: Client, message, db, queue):
@@ -325,7 +330,7 @@ def register(client: Client, db, queue) -> None:
         await queue_command(client, message, queue)
 
     async def cancel_handler(client: Client, message):
-        await cancel_command(client, message, queue)
+        await cancel_command(client, message, queue, db)
 
     async def stats_handler(client: Client, message):
         await stats_command(client, message, db, queue)
