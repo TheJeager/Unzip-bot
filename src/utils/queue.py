@@ -15,6 +15,8 @@ class Job:
     created_at: datetime
     future: asyncio.Future
     cancelled: bool = False
+    password: str | None = None
+    password_event: asyncio.Event | None = None
 
 
 class JobQueue:
@@ -68,6 +70,7 @@ class JobQueue:
             filename,
             datetime.now(timezone.utc),
             loop.create_future(),
+            password_event=asyncio.Event(),
         )
         self.waiting.append(job)
         await self.queue.put(job)
