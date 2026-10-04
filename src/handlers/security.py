@@ -12,7 +12,11 @@ def validate_member_name(name: str) -> str:
     if normalized.startswith("/") or normalized.startswith("//"):
         raise ArchiveSecurityError(f"Unsafe absolute archive path: {name}")
     drive, _ = os.path.splitdrive(normalized)
-    if drive:
+    if drive or (
+        len(normalized) >= 2
+        and normalized[0].isalpha()
+        and normalized[1] == ":"
+    ):
         raise ArchiveSecurityError(f"Unsafe drive archive path: {name}")
     return normalized
 
