@@ -80,6 +80,7 @@ async def process_job(client: Client, db, job: Job) -> bool:
                 job.filename,
                 output,
                 extraction_progress,
+                plan,
             )
             if extraction_tasks:
                 await asyncio.gather(*extraction_tasks, return_exceptions=True)
