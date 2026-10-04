@@ -20,6 +20,7 @@ class Database:
         await self.db.users.create_index("user_id", unique=True)
         await self.db.jobs.create_index("job_id", unique=True)
         await self.db.jobs.create_index([("user_id", 1), ("created_at", -1)])
+        await self.db.jobs.create_index([("status", 1), ("updated_at", -1)])
         await self.db.stats.create_index("_id", unique=True)
 
     async def close(self) -> None:
