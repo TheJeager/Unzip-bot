@@ -163,11 +163,8 @@ async def process_job(client: Client, db, job: Job) -> bool:
                     )
                 else:
                     await status.edit_text(
-                        f"❌ **Upload failed**
-
-"
-                        f"📦 Files: **{len(files)}**
-"
+                        f"❌ **Upload failed**\n\n"
+                        f"📦 Files: **{len(files)}**\n"
                         f"❌ Failed: **{failed_files}**"
                     )
                 return False
@@ -230,9 +227,7 @@ async def process_job(client: Client, db, job: Job) -> bool:
         if status:
             try:
                 await status.edit_text(
-                    f"❌ **Job failed**
-
-{type(exc).__name__}: {exc}"
+                    f"❌ **Job failed**\n\n{type(exc).__name__}: {exc}"
                 )
             except Exception:
                 pass
