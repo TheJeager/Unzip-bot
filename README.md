@@ -29,6 +29,8 @@ The codebase is split into focused modules for Telegram handlers, archive proces
 ## Features
 
 - ZIP extraction
+- Password-protected ZIP extraction
+- AES-encrypted ZIP support
 - TAR extraction
 - TAR.GZ / TGZ extraction
 - TAR.BZ2 / TBZ2 extraction
@@ -59,6 +61,7 @@ Unzip Bot checks archive contents before and during extraction to reduce common 
 - Maximum extracted file count
 - Compression ratio limits
 - Duplicate members
+- Passwords kept only in process memory and never persisted
 
 Each job receives an isolated temporary directory. Temporary data is removed after processing, including failure paths.
 
@@ -285,7 +288,7 @@ Updates are throttled to avoid unnecessary Telegram API requests while keeping t
 | Concurrency | asyncio |
 | Containers | Docker |
 | Init process | tini |
-| Archive handling | Python standard library |
+| Archive handling | Python standard library + pyzipper |
 
 ## Contributing
 
