@@ -150,15 +150,10 @@ async def process_job(client: Client, db, job: Job) -> bool:
 
                 if uploaded_files:
                     await status.edit_text(
-                        f"⚠️ **Completed with errors**
-
-"
-                        f"📦 Files: **{len(files)}**
-"
-                        f"✅ Uploaded: **{uploaded_files}**
-"
-                        f"❌ Failed: **{failed_files}**
-"
+                        f"⚠️ **Completed with errors**\n\n"
+                        f"📦 Files: **{len(files)}**\n"
+                        f"✅ Uploaded: **{uploaded_files}**\n"
+                        f"❌ Failed: **{failed_files}**\n"
                         f"📤 Uploaded data: **{format_bytes(uploaded)}**"
                     )
                 else:
