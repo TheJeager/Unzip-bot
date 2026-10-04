@@ -263,25 +263,28 @@ async def archive_message(client: Client, message, queue, db):
         await message.reply_text("⏳ You already have a job in progress. Use /queue.")
         return
 
+    user_id = message.from_user.id
+    await db.user(user_id)
+
     job = await queue.submit(
-        message.from_user.id,
+        user_id,
         message.chat.id,
         message.id,
         filename,
     )
-    await db.create_job(
-        job.job_id,
-        job.user_id,
-        job.chat_id,
-        job.message_id,
-        job.filename,
-    )
-    await message.reply_text(f"🧾 Job **{job.job_id}** queued.")
-
     try:
-        await job.future
+        await db.create_job(
+            job.job_id,
+            job.user_id,
+            job.chat_id,
+            job.message_id,
+            job.filename,
+        )
     except Exception:
-        pass
+        await queue.cancel_job(job.job_id)
+        raise
+
+    await message.reply_text(f"🧾 Job **{job.job_id}** queued.")
 
 
 async def help_command(client: Client, message):
