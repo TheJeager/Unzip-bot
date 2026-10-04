@@ -202,9 +202,7 @@ async def process_job(client: Client, db, job: Job) -> bool:
         await db.increment("rejected_jobs")
         if status:
             try:
-                await status.edit_text(f"🛡️ **Archive rejected**
-
-{exc}")
+                await status.edit_text(f"🛡️ **Archive rejected**{exc}")
             except Exception:
                 pass
         return False
