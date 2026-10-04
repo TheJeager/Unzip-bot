@@ -176,13 +176,9 @@ async def process_job(client: Client, db, job: Job) -> bool:
             await db.increment("successful_jobs")
 
             await status.edit_text(
-                f"✅ **Completed**
-
-"
-                f"📦 Files: **{len(files)}**
-"
-                f"💾 Expanded: **{format_bytes(result.expanded_bytes)}**
-"
+                f"✅ **Completed**\n\n"
+                f"📦 Files: **{len(files)}**\n"
+                f"💾 Expanded: **{format_bytes(result.expanded_bytes)}**\n"
                 f"📤 Uploaded: **{format_bytes(uploaded)}**"
             )
 
