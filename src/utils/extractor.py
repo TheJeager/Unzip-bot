@@ -169,7 +169,31 @@ async def extract(
         files = await asyncio.to_thread(_extract_tar, path, output, report)
 
     validate_output_tree(output)
-    actual = sum(p.stat().st_size for p in files if p.is_file())
-    if actual > SETTINGS.max_extracted_bytes:
-        raise ArchiveSecurityError("Extracted data exceeded the configured limit.")
-    return ExtractionResult(files, actual, plan.archive_bytes)
+    regular_files = [path for path in files if path.is_file()]
+    if len(regular_files) != plan.files:
+        raise ArchiveSecurityError(
+            f"Extraction file count mismatch: expected {plan.files}, got {len(regular_files)}."
+        )
+
+    actual = 0
+    for file_path in regular_files:
+        try:
+            size = file_path.stat().st_size
+        except OSError as exc:
+            raise ArchiveSecurityError(
+                f"Unable to verify extracted file: {file_path.name}"
+            ) from exc
+        if size > SETTINGS.max_file_bytes:
+            raise ArchiveSecurityError(
+                f"Extracted file exceeds the configured per-file limit: {file_path.name}"
+            )
+        actual += size
+        if actual > SETTINGS.max_extracted_bytes:
+            raise ArchiveSecurityError("Extracted data exceeded the configured limit.")
+
+    if actual != plan.expanded_bytes:
+        raise ArchiveSecurityError(
+            f"Extraction size mismatch: expected {plan.expanded_bytes} bytes, got {actual}."
+        )
+
+    return ExtractionResult(regular_files, actual, plan.archive_bytes)
