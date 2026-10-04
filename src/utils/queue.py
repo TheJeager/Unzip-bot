@@ -79,6 +79,17 @@ class JobQueue:
     def queued_for_user(self, user_id: int) -> int:
         return sum(j.user_id == user_id and not j.cancelled for j in self.waiting)
 
+    async def cancel_job(self, job_id: str) -> bool:
+        for job in self.waiting:
+            if job.job_id != job_id or job.cancelled:
+                continue
+            job.cancelled = True
+            if not job.future.done():
+                job.future.set_result(False)
+            self.waiting = deque(item for item in self.waiting if not item.cancelled)
+            return True
+        return False
+
     async def cancel_user(self, user_id: int) -> list[Job]:
         cancelled = []
         for job in self.waiting:
