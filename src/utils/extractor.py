@@ -59,8 +59,8 @@ def inspect_zip(path: Path) -> ArchivePlan:
             mode = member.external_attr >> 16
             if is_symlink_mode(mode) or is_special_mode(mode):
                 raise ArchiveSecurityError(f"Unsupported archive entry: {member.filename}")
-            safe_member_path(Path("/tmp"), member.filename)
-            normalized = member.filename.replace("\\", "/")
+            canonical = safe_member_path(Path("/tmp"), member.filename)
+            normalized = canonical.relative_to(Path("/tmp").resolve()).as_posix()
             if normalized in seen:
                 raise ArchiveSecurityError(f"Duplicate archive entry: {member.filename}")
             seen.add(normalized)
@@ -84,8 +84,8 @@ def inspect_tar(path: Path) -> ArchivePlan:
                 continue
             if member.issym() or member.islnk() or is_special_mode(member.mode):
                 raise ArchiveSecurityError(f"Unsupported archive entry: {member.name}")
-            safe_member_path(Path("/tmp"), member.name)
-            normalized = member.name.replace("\\", "/")
+            canonical = safe_member_path(Path("/tmp"), member.name)
+            normalized = canonical.relative_to(Path("/tmp").resolve()).as_posix()
             if normalized in seen:
                 raise ArchiveSecurityError(f"Duplicate archive entry: {member.name}")
             seen.add(normalized)
