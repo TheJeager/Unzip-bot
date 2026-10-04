@@ -1,6 +1,8 @@
 import asyncio
 import tarfile
 import zipfile
+
+import pyzipper
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +21,7 @@ class ArchivePlan:
     files: int
     expanded_bytes: int
     archive_bytes: int
+    encrypted: bool = False
 
 
 @dataclass(slots=True)
@@ -52,10 +55,14 @@ def inspect_zip(path: Path) -> ArchivePlan:
     files = 0
     expanded = 0
     seen = set()
-    with zipfile.ZipFile(path) as archive:
+    encrypted = False
+    with pyzipper.AESZipFile(path) as archive:
+        if password is not None:
+            archive.setpassword(password.encode())
         for member in archive.infolist():
             if member.is_dir():
                 continue
+            encrypted = encrypted or bool(member.flag_bits & 0x1)
             mode = member.external_attr >> 16
             if is_symlink_mode(mode) or is_special_mode(mode):
                 raise ArchiveSecurityError(f"Unsupported archive entry: {member.filename}")
@@ -71,7 +78,7 @@ def inspect_zip(path: Path) -> ArchivePlan:
             expanded += size
     archive_bytes = path.stat().st_size
     _validate(files, expanded, archive_bytes)
-    return ArchivePlan(files, expanded, archive_bytes)
+    return ArchivePlan(files, expanded, archive_bytes, encrypted)
 
 
 def inspect_tar(path: Path) -> ArchivePlan:
@@ -108,7 +115,7 @@ def inspect(path: Path, filename: str) -> ArchivePlan:
     raise ArchiveSecurityError("Unsupported archive format.")
 
 
-def _extract_zip(path: Path, output: Path, callback) -> list[Path]:
+def _extract_zip(path: Path, output: Path, callback, password: str | None = None) -> list[Path]:
     result = []
     done = 0
     with zipfile.ZipFile(path) as archive:
@@ -155,6 +162,7 @@ async def extract(
     output: Path,
     callback,
     plan: ArchivePlan | None = None,
+    password: str | None = None,
 ) -> ExtractionResult:
     plan = plan or inspect(path, filename)
     output.mkdir(parents=True, exist_ok=True)
@@ -164,7 +172,7 @@ async def extract(
         loop.call_soon_threadsafe(callback, current)
 
     if archive_kind(filename) == "zip":
-        files = await asyncio.to_thread(_extract_zip, path, output, report)
+        files = await asyncio.to_thread(_extract_zip, path, output, report, password)
     else:
         files = await asyncio.to_thread(_extract_tar, path, output, report)
 
