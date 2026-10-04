@@ -66,16 +66,26 @@ async def process_job(client: Client, db, job: Job) -> bool:
                 SETTINGS.progress_interval,
             )
 
+            extraction_tasks = set()
+
             def extraction_progress(current):
-                asyncio.create_task(
+                task = asyncio.create_task(
                     extraction_reporter.update(current, plan.expanded_bytes)
                 )
+                extraction_tasks.add(task)
+                task.add_done_callback(extraction_tasks.discard)
 
             result = await extract(
                 archive_path,
                 job.filename,
                 output,
                 extraction_progress,
+            )
+            if extraction_tasks:
+                await asyncio.gather(*extraction_tasks, return_exceptions=True)
+            await extraction_reporter.update(
+                result.expanded_bytes,
+                result.expanded_bytes,
             )
             files = [path for path in result.files if path.is_file()]
 
