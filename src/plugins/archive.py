@@ -2,6 +2,8 @@ import asyncio
 import tempfile
 from pathlib import Path
 
+PASSWORD_REQUESTS = {}
+
 from pyrogram import Client, filters
 from pyrogram.handlers import MessageHandler
 
@@ -47,6 +49,48 @@ async def process_job(client: Client, db, job: Job) -> bool:
             await download_media(client, source, archive_path, download_progress)
 
             plan = inspect(archive_path, job.filename)
+            password = None
+            if plan.encrypted:
+                if job.password_event is None:
+                    raise RuntimeError("Password state is unavailable.")
+                password_message = await status.edit_text(
+                    "🔐 **Password required**\\n\\nReply to this message with the ZIP password.\\n"
+                    "The password is kept only in memory and is never stored in MongoDB or logs."
+                )
+                PASSWORD_REQUESTS[password_message.id] = job
+                try:
+                    for attempt in range(3):
+                        job.password = None
+                        job.password_event.clear()
+                        try:
+                            await asyncio.wait_for(job.password_event.wait(), timeout=300)
+                        except asyncio.TimeoutError as exc:
+                            raise RuntimeError("Password entry timed out.") from exc
+                        password = job.password
+                        try:
+                            result = await extract(
+                                archive_path,
+                                job.filename,
+                                output,
+                                lambda current: None,
+                                plan,
+                                password,
+                            )
+                            break
+                        except Exception as exc:
+                            if attempt >= 2:
+                                raise RuntimeError("Incorrect ZIP password.") from exc
+                            await status.edit_text(
+                                f"❌ **Incorrect password**\\n\\n"
+                                f"Attempt **{attempt + 1}/3** failed. Reply with the correct password."
+                            )
+                    else:
+                        raise RuntimeError("Incorrect ZIP password.")
+                finally:
+                    PASSWORD_REQUESTS.pop(password_message.id, None)
+                    job.password = None
+            else:
+                result = None
             await db.update_job(
                 job.job_id,
                 {
@@ -75,13 +119,15 @@ async def process_job(client: Client, db, job: Job) -> bool:
                 extraction_tasks.add(task)
                 task.add_done_callback(extraction_tasks.discard)
 
-            result = await extract(
-                archive_path,
-                job.filename,
-                output,
-                extraction_progress,
-                plan,
-            )
+            if result is None:
+                result = await extract(
+                    archive_path,
+                    job.filename,
+                    output,
+                    extraction_progress,
+                    plan,
+                    password,
+                )
             if extraction_tasks:
                 await asyncio.gather(*extraction_tasks, return_exceptions=True)
             await extraction_reporter.update(
@@ -324,6 +370,22 @@ Active: **{queue.status()['active']}**"""
     )
 
 
+async def password_reply(client: Client, message):
+    reply = message.reply_to_message
+    if not reply or not message.from_user or not message.text:
+        return
+    job = PASSWORD_REQUESTS.get(reply.id)
+    if not job or job.user_id != message.from_user.id or job.chat_id != message.chat.id:
+        return
+    job.password = message.text
+    if job.password_event:
+        job.password_event.set()
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+
 def register(client: Client, db, queue) -> None:
     async def archive_handler(client: Client, message):
         await archive_message(client, message, queue, db)
@@ -338,6 +400,7 @@ def register(client: Client, db, queue) -> None:
         await stats_command(client, message, db, queue)
 
     client.add_handler(MessageHandler(archive_handler, filters.document))
+    client.add_handler(MessageHandler(password_reply, filters.reply & filters.text))
     client.add_handler(MessageHandler(help_command, filters.command("help")))
     client.add_handler(MessageHandler(queue_handler, filters.command("queue")))
     client.add_handler(MessageHandler(cancel_handler, filters.command("cancel")))
