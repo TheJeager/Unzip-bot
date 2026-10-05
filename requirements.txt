@@ -1,4 +1,4 @@
 Kurigram==2.2.26
 pymongo==4.18.2
-python-dotenv==1.2.1
+python-dotenv==1.2.4
 pyzipper==0.4.0
